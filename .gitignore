@@ -1,0 +1,17 @@
+# Környezeti változók és érzékeny adatok (pl. MySQL jelszó)
+.env
+.env.local
+
+# Telepített csomagok és függőségek
+node_modules/
+vendor/
+
+# Fejlesztői környezet és operációs rendszer fájlok
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Naplófájlok és ideiglenes fájlok
+*.log
+*.tmp
