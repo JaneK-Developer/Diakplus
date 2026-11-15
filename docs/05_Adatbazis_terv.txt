@@ -1,0 +1,347 @@
+==================================================
+DIÁKPLUSZ ADATBÁZISTERV v3 – csak [MVP] / [ÚJ] / [MÓD] részek
+(v2 + oktatói visszajelzés alapján bővítve)
+==================================================
+Jelölések:
+  [MVP]    = az első fejlesztési ütem része (alapfunkciók)
+  [ÚJ]     = a v2-höz képest új tábla
+  [MÓD]    = a v2-höz képest módosított tábla
+Névkonvenció: snake_case, ékezet nélkül, kisbetűs tábla- és oszlopnevek.
+Minden tábla: letrehozva (TIMESTAMP, alapérték: most). Ahol szükséges: modositva.
+Ebből a változatból kimaradt minden [KÉSŐBB] jelölésű rész: kviz_valasz_naplo,
+a teljes Blog és hírek modul, jelvenyek, tanulo_jelvenyek, valamint a
+Személyre szabott ajánlások modul (tanulo_tema_statisztika, ajanlasok).
+
+==================================================
+1. FELHASZNÁLÓI ÉS BIZTONSÁGI MODUL [MVP]
+==================================================
+
+felhasznalok: [MÓD]
+felhasznalo_id (PK)
+email_cim (UNIQUE, NOT NULL)
+email_megerositve (BOOLEAN)       -- regisztráció utáni e-mail megerősítés
+jelszo_hash                       -- Argon2id / bcrypt
+szuletesi_ido (DATE)              -- korhatár-ellenőrzéshez szükséges
+is_active (BOOLEAN)
+utolso_belepes
+regisztracio_datuma
+torolve_datuma (NULL-ozható)      -- soft delete / törlési kérelem végrehajtása
+-- ELTÁVOLÍTVA: felhasznalo_tipus (kiváltja az RBAC szerepkör-modul)
+-- ELTÁVOLÍTVA: telefonszam, iranyitoszam, varos, utca, hazszam
+--   (adattakarékosság: kiskorúaknál nem gyűjtjük; számlázási cím az
+--    elofizetok táblába kerül, csak fizetős előfizetőnél)
+
+felhasznalo_munkamenetek: [MÓD]
+session_id (PK)
+felhasznalo_id (FK -> felhasznalok)
+refresh_token_hash                -- NEM nyers token, hanem hash
+ip_cim
+user_agent
+lejarat_datuma
+visszavonva (BOOLEAN)
+
+jelszo_visszaallitas: [MÓD]
+reset_id (PK)
+felhasznalo_id (FK -> felhasznalok)
+token_hash                        -- NEM nyers token, hanem hash
+felhasznalva (BOOLEAN)
+lejarat_datuma
+
+==================================================
+2. ADATVÉDELEM ÉS KISKORÚ FELHASZNÁLÓK MODUL [MVP] [ÚJ]
+==================================================
+-- Visszajelzés: kiskorú célcsoport -> biztonságos regisztráció,
+-- részletes adatkezelés.
+
+-- MEGJEGYZÉS: gondviselői és pedagógus felhasználó NINCS a rendszerben,
+-- ezekhez nincs fiók és nincs tábla.
+
+hozzajarulasok: [ÚJ]              -- GDPR hozzájárulás-nyilvántartás
+hozzajarulas_id (PK)
+felhasznalo_id (FK -> felhasznalok)
+tipus                             -- ADATKEZELES, MARKETING, ELOFIZETES_ASZF
+verzio                            -- az elfogadott szöveg verziója
+megadva (BOOLEAN)
+idopont
+visszavonas_idopontja (NULL-ozható)
+szuloi_megerosites_modja (NULL)   -- kiskorúnál, pl. 'EMAIL_MEGEROSITES' (nem felhasználó!)
+szuloi_megerosites_datuma (NULL)
+
+adatkezelesi_kerelmek: [ÚJ]       -- törlés / hozzáférés / helyesbítés
+kerelem_id (PK)
+felhasznalo_id (FK -> felhasznalok)
+tipus                             -- TORLES, EXPORT, HELYESBITES
+statusz                           -- NYITOTT, FOLYAMATBAN, LEZARVA
+benyujtva
+lezarva (NULL-ozható)
+
+audit_naplo: [ÚJ]                 -- ki mikor mit olvasott/módosított
+naplo_id (PK)
+felhasznalo_id (FK, NULL-ozható)
+muvelet
+tabla_nev
+rekord_id
+ip_cim
+idopont
+
+==================================================
+3. DIÁK ÉS TANULMÁNYI MODUL [MVP]
+==================================================
+
+iskolak: [ÚJ]                     -- szabad szöveg helyett
+iskola_id (PK)
+iskola_nev
+varos
+
+tanulok:                          -- v2: tanulok_tabla [MÓD: átnevezve]
+tanulo_id (PK)
+felhasznalo_id (FK -> felhasznalok, UNIQUE)   -- 1:1 kapcsolat
+megjelenitett_nev                 -- becenév is lehet (adattakarékosság)
+iskola_id (FK -> iskolak, NULL-ozható)
+evfolyam (INT)
+osztaly_jelzes (NULL)             -- pl. 'A'
+
+tantargyak: [MÓD]
+tantargy_id (PK)
+tantargy_nev
+evfolyam (INT)
+-- ELTÁVOLÍTVA: tantargy_link (kiváltja az nkp_tananyagok tábla)
+
+temak: [ÚJ]                       -- tantárgyon belüli témakörök
+tema_id (PK)
+tantargy_id (FK -> tantargyak)
+tema_nev
+
+nkp_tananyagok: [ÚJ]              -- NKP kapcsolódás pontosítása
+nkp_id (PK)
+tantargy_id (FK -> tantargyak)
+tema_id (FK -> temak, NULL-ozható)
+cim
+url
+forras_tipus                      -- LINK, BEAGYAZOTT, SAJAT_TARTALOM
+aktiv (BOOLEAN)
+utolso_ellenorzes                 -- törött linkek kiszűrése
+
+tanulo_tantargy:                  -- KAPCSOLÓTÁBLA (Many-to-Many)
+kapcsolat_id (PK)
+tanulo_id (FK -> tanulok)
+tantargy_id (FK -> tantargyak)
+UNIQUE (tanulo_id, tantargy_id)
+
+-- v2 "eredmenyek" tábla MEGSZŰNIK: a kviz_eredmenyek táblával átfedésben
+-- volt, és nem kapcsolódott sem tantárgyhoz, sem kvízhez.
+
+==================================================
+4. KVÍZ ÉS TANULÓKÁRTYA MODUL [MVP]
+==================================================
+-- Az általános és gazdasági kvíz EGY struktúrába vonva, típus-mezővel.
+-- Így a naplóban nincs két NULL-ozható FK, és a kérdés-struktúra közös.
+
+kvizek: [MÓD: kvizrendszer + gazdasagi_kvizek összevonva]
+kviz_id (PK)
+tantargy_id (FK -> tantargyak, NULL-ozható)   -- gazdasági kvíznél lehet NULL
+tema_id (FK -> temak, NULL-ozható)
+kviz_nev
+leiras
+kviz_tipus                        -- ALTALANOS, GAZDASAGI
+kategoria                         -- pl. adók, kamat, bruttó-nettó bér
+nehezseg (INT)
+elerheto_csomag_id (FK -> csomagok, NULL-ozható)  -- ingyenes/fizetős szétválasztás
+aktiv (BOOLEAN)
+
+kviz_kerdesek: [ÚJ]               -- v2-ből hiányzott
+kerdes_id (PK)
+kviz_id (FK -> kvizek)
+kerdes_szoveg
+kerdes_tipus                      -- EGY_VALASZ, TOBB_VALASZ, SZAMOLOS
+is_dynamic (BOOLEAN)              -- dinamikus kalkulált feladat
+parameter_sablon (JSON, NULL)     -- dinamikusnál: tartományok, képlet
+pont (INT)
+
+kviz_valaszok: [ÚJ]
+valasz_id (PK)
+kerdes_id (FK -> kviz_kerdesek)
+valasz_szoveg
+helyes (BOOLEAN)
+
+kviz_probalkozasok: [MÓD: kviz_eredmenyek_naplo]
+probalkozas_id (PK)
+tanulo_id (FK -> tanulok)
+kviz_id (FK -> kvizek)
+elerett_pontszam
+max_pontszam
+szazalek
+kitoltes_datuma
+
+tanulokartya_csomagok: [MÓD]      -- v2 tanulokartya: tartalom és eredmény szétválasztva
+csomag_id (PK)
+tantargy_id (FK -> tantargyak)
+tema_id (FK -> temak, NULL-ozható)
+csomag_nev
+
+tanulokartyak: [ÚJ]
+kartya_id (PK)
+csomag_id (FK -> tanulokartya_csomagok)
+elolap
+hatlap
+
+tanulokartya_haladas: [ÚJ]
+id (PK)
+tanulo_id (FK -> tanulok)
+kartya_id (FK -> tanulokartyak)
+tudom_szint (INT)                 -- pl. 0-5 (ismétlési ütemezéshez)
+utolso_ismetles
+kovetkezo_ismetles
+UNIQUE (tanulo_id, kartya_id)
+
+==================================================
+5. MOTIVÁCIÓS RENDSZER: XP, SZINTEK [MVP alap]
+==================================================
+-- Visszajelzés: konkrét szabályok és számítási példák kellenek.
+-- A szabályok adatként tárolva: a szerver ebből számol, nincs hardcode.
+
+xp_szabalyok: [ÚJ]
+szabaly_id (PK)
+esemeny_tipus                     -- KVIZ_BEFEJEZES, KARTYA_ISMETLES, NAPI_BELEPES...
+xp_ertek (INT)
+szorzo_szazalekfuggo (BOOLEAN)    -- pl. XP = alap * szazalek/100
+napi_limit (INT, NULL)            -- visszaélés ellen
+aktiv (BOOLEAN)
+-- PÉLDA: KVIZ_BEFEJEZES, alap 50 XP, szazalekfuggo -> 80%-nál 40 XP
+
+xp_esemenyek: [ÚJ]                -- főkönyv (ledger): minden XP-változás itt
+esemeny_id (PK)
+tanulo_id (FK -> tanulok)
+szabaly_id (FK -> xp_szabalyok)
+forras_tipus, forras_id           -- pl. 'KVIZ_PROBALKOZAS', probalkozas_id
+xp_valtozas (INT)
+idopont
+
+szintek: [ÚJ]
+szint_id (PK)
+szint_szam (INT, UNIQUE)
+szukseges_xp (INT)                -- összesített XP-küszöb
+szint_nev
+
+tanulo_statisztika: [MÓD: XP_rendszer helyett]
+tanulo_id (PK, FK -> tanulok)
+osszes_xp (INT)                   -- gyorsítótár; az xp_esemenyek összege
+szint_id (FK -> szintek)
+aktualis_sorozat_nap (INT)        -- streak
+utolso_aktivitas
+
+==================================================
+6. ELŐFIZETÉSI ÉS FIZETÉSI MODUL (Stripe / Barion) [MVP-ban csak ingyenes/alap]
+==================================================
+
+csomagok: [ÚJ]                    -- v2: csomag_tipus szabad szöveg helyett
+csomag_id (PK)
+csomag_kod (UNIQUE)               -- 'INGYENES', 'PREMIUM'
+csomag_nev
+ar (DECIMAL)
+penznem                           -- HUF / EUR
+szamlazasi_periodus               -- HAVI, EVES
+aktiv (BOOLEAN)
+
+funkciok: [ÚJ]
+funkcio_id (PK)
+funkcio_kod (UNIQUE)              -- pl. 'KORLATLAN_KVIZ', 'AJANLASOK', 'GAZDASAGI_KVIZ'
+leiras
+
+csomag_funkciok: [ÚJ]             -- ingyenes vs. fizetős pontos különbsége
+id (PK)
+csomag_id (FK -> csomagok)
+funkcio_id (FK -> funkciok)
+korlat_ertek (INT, NULL)          -- pl. napi 3 kvíz ingyenesen, NULL = korlátlan
+
+elofizetok: [ÚJ]                  -- előfizetői / számlázási profil
+elofizeto_id (PK)
+felhasznalo_id (FK -> felhasznalok, UNIQUE)
+szamlazasi_nev
+szamlazasi_iranyitoszam
+szamlazasi_varos
+szamlazasi_utca_hazszam
+adoszam (NULL-ozható)
+kulso_ugyfel_id                   -- Stripe/Barion customer azonosító
+letrehozva
+
+elofizetesek: [MÓD]
+elofizetes_id (PK)
+elofizeto_id (FK -> elofizetok)
+csomag_id (FK -> csomagok)
+kulso_elofizetes_id               -- szolgáltatói előfizetés-azonosító
+kezdet_datuma
+lejarat_datuma
+automatikus_megujitas (BOOLEAN)
+statusz                           -- ACTIVE, PAST_DUE, CANCELLED, EXPIRED
+lemondas_datuma (NULL-ozható)
+lemondas_oka (NULL-ozható)
+hozzaferes_vege (NULL-ozható)     -- lemondás után a kifizetett időszak végéig él
+
+fizetesi_tranzakciok: [MÓD]
+tranzakcio_id (PK)
+elofizeto_id (FK -> elofizetok)
+elofizetes_id (FK -> elofizetesek, NULL-ozható)
+szolgaltato                       -- 'STRIPE' vagy 'BARION'
+kulso_tranzakcio_id (UNIQUE)
+osszeg
+penznem
+statusz                           -- SUCCESS, PENDING, FAILED, REFUNDED
+hibakod (NULL-ozható)             -- sikertelen fizetés oka
+probalkozas_szama (INT)           -- újrapróbálkozások (dunning)
+kovetkezo_probalkozas (NULL)
+tranzakcio_datuma
+-- Kártyaadatot NEM tárolunk, azt kizárólag a fizetési szolgáltató kezeli.
+
+fizetesi_webhook_naplo: [ÚJ]      -- szolgáltatói események idempotens feldolgozása
+esemeny_id (PK)
+szolgaltato
+kulso_esemeny_id (UNIQUE)
+esemeny_tipus
+feldolgozva (BOOLEAN)
+beerkezett
+
+==================================================
+7. JOGOSULTSÁG ÉS SZEREPKÖR MODUL (RBAC) [MVP]
+==================================================
+
+szerepkorok:
+szerepkor_id (PK)
+szerepkor_nev (UNIQUE)            -- 'DIAK', 'SZERKESZTO', 'ADMIN'  (nincs pedagógus és gondviselő szerepkör)
+
+felhasznalo_szerepkor:            -- KAPCSOLÓTÁBLA (Many-to-Many)
+id (PK)
+felhasznalo_id (FK -> felhasznalok)
+szerepkor_id (FK -> szerepkorok)
+UNIQUE (felhasznalo_id, szerepkor_id)
+
+jogosultsagok:
+jogosultsag_id (PK)
+jogosultsag_nev (UNIQUE)          -- 'QUIZ_CREATE', 'MANAGE_USERS'
+
+szerepkor_jogosultsag:            -- KAPCSOLÓTÁBLA
+id (PK)
+szerepkor_id (FK -> szerepkorok)
+jogosultsag_id (FK -> jogosultsagok)
+UNIQUE (szerepkor_id, jogosultsag_id)
+
+==================================================
+8. JAVASOLT INDEXEK ÉS MEGKÖTÉSEK
+==================================================
+- felhasznalok(email_cim) UNIQUE
+- kviz_probalkozasok(tanulo_id, kitoltes_datuma)
+- xp_esemenyek(tanulo_id, idopont)
+- elofizetesek(elofizeto_id, statusz)
+- fizetesi_tranzakciok(kulso_tranzakcio_id) UNIQUE
+- felhasznalo_munkamenetek(felhasznalo_id, lejarat_datuma)
+- Minden FK-ra index; töröléskor ON DELETE szabály kiválasztása
+  (pl. tanulóhoz kötődő adatok CASCADE, pénzügyi adatok RESTRICT)
+- Pénzügyi rekordok megőrzése: számviteli megőrzési kötelezettség miatt
+  a felhasználó törlésekor a tranzakciók anonimizálva megmaradnak.
+
+==================================================
+9. FEJLESZTÉSI ÜTEMEZÉS (visszajelzés: alapfunkciók először)
+==================================================
+1. ütem [MVP]: felhasználók, munkamenetek, adatvédelem/hozzájárulás, tanulók,
+   tantárgyak/témák/NKP, kvízek + kérdések + próbálkozások, tanulókártya,
+   alap XP (xp_szabalyok, xp_esemenyek, szintek), RBAC
