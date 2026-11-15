@@ -8,7 +8,7 @@ A **DiákPlusz** egy komplex, reszponzív oktatási webalkalmazás felső tagoza
 
 | Név | Szerepkör | Fő feladatok | GitHub |
 | :--- | :--- | :--- | :--- |
-| **Ludmann Dániel** | Frontend fejlesztő | UI/UX tervezés (Figma), reszponzív kliensoldali felület (HTML5, CSS3, JS) | `@dani-github-neve` |
+| **Ludmann Dániel** | Frontend fejlesztő | UI/UX tervezés (Figma), reszponzív kliensoldali felület (HTML5, CSS3, JS) | `@ludmanndani` |
 | **Zóka Péter** | Backend fejlesztő | MySQL adatbázis-architektúra, ER diagram, szerveroldali logika és API végpontok | `@zoka-peter` |
 | **Susányi János** | Full-stack fejlesztő | Frontend–backend integráció, JIRA projektmenedzsment, dokumentáció | `@JaneK-Developer` |
 
