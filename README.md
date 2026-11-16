@@ -49,7 +49,7 @@ A **DiákPlusz** egy komplex, reszponzív oktatási webalkalmazás felső tagoza
 
 ## Kapcsolódó linkek
 
-* **Figma UI terv:** `[https://www.figma.com/proto/sCNSJAzP1x3q4ixbkUl51m/Untitled?node-id=0-1&t=jOeege6O8AzMU0vx-1]`
+* **Figma UI terv:** `[https://www.figma.com/design/sCNSJAzP1x3q4ixbkUl51m/Untitled?node-id=0-1&m=dev&t=4vuUAH9pfdRSmhnU-1]`
 * **Jira projekt tábla:** `[https://diakplus.atlassian.net/jira/software/projects/DIAK/list?jql=project%20%3D%20DIAK%20ORDER%20BY%20cf%5B10019%5D%20ASC]`
 
 ---
