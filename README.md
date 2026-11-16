@@ -1,4 +1,8 @@
-# DiákPlusz – Oktatási és Pénzügyi Edukációs Platform
+<p align="center">
+  <img src="assets/logo.png" alt="DiákPlusz logó" width="180">
+</p>
+
+<h1 align="center">DiákPlusz – Oktatási és Pénzügyi Edukációs Platform</h1>
 
 A **DiákPlusz** egy komplex, reszponzív oktatási webalkalmazás felső tagozatos, gimnáziumi és technikumi diákok számára. A platform egyetlen átlátható ökoszisztémában egyesíti a tananyagokat, a digitális tanulókártyákat (flashcard), az interaktív kvízeket, a gamifikált motivációs rendszert (XP, streak, szintek) és az alapvető gyakorlati pénzügyi ismereteket.
 
@@ -45,7 +49,7 @@ A **DiákPlusz** egy komplex, reszponzív oktatási webalkalmazás felső tagoza
 
 ## Kapcsolódó linkek
 
-* **Figma UI terv:** `[https://www.figma.com/design/sCNSJAzP1x3q4ixbkUl51m/Untitled?node-id=0-1&p=f&t=kqDs3erWUDsIlnyL-0]`
+* **Figma UI terv:** `[https://www.figma.com/proto/sCNSJAzP1x3q4ixbkUl51m/Untitled?node-id=0-1&t=jOeege6O8AzMU0vx-1]`
 * **Jira projekt tábla:** `[https://diakplus.atlassian.net/jira/software/projects/DIAK/list?jql=project%20%3D%20DIAK%20ORDER%20BY%20cf%5B10019%5D%20ASC]`
 
 ---
@@ -56,3 +60,5 @@ A fejlesztés során külön ágakon dolgozunk:
 * `main` – Stabil, ellenőrzött és bemutatható állapot
 * `dev` – Aktív fejlesztési és integrációs ág
 * `feature/*`, `docs/*` – Funkció- és dokumentációs ágak, amelyek **Pull Request** és kölcsönös átnézés (code review) után kerülnek beolvasztásra.
+
+![DiákPlusz projekt poszter](assets/poszter.png)
